@@ -1,0 +1,10 @@
+#!/bin/bash
+
+cat <<EOF
+POSTGRES_PASSWORD=$(openssl rand -hex 32)
+SECRET_KEY=$(openssl rand -hex 32)
+VIRTUAL_HOST=awx.$(curl -s ifconfig.localdomain.pl).nip.io
+LETSENCRYPT_HOST=awx.$(curl -s ifconfig.localdomain.pl).nip.io
+LETSENCRYPT_EMAIL=nobody@example.com
+RABBITMQ_PASSWORD=$(openssl rand -hex 32)
+EOF
