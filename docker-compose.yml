@@ -1,0 +1,95 @@
+version: '2'
+services:
+  postgres:
+    image: "postgres:9.6"
+    environment:
+      POSTGRES_USER: awx
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: awx
+    command: postgres -c wal_level=replica
+    volumes:
+     - ./postgres:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: "rabbitmq:3"
+    environment:
+      RABBITMQ_DEFAULT_VHOST: awx
+
+  memcached:
+    image: "memcached:alpine"
+
+  awx_web:
+    image: "ansible/awx_web:latest"
+    links:
+      - rabbitmq
+      - memcached
+      - postgres
+    hostname: awxweb
+    user: root
+    volumes:
+    - ./nginx/uwsgi_params:/etc/nginx/uwsgi_params
+    environment:
+      SECRET_KEY: ${SECRET_KEY}
+      DATABASE_USER: awx
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      DATABASE_NAME: awx
+      DATABASE_PORT: 5432
+      DATABASE_HOST: postgres
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_VHOST: awx
+      MEMCACHED_HOST: memcached
+      MEMCACHED_PORT: 11211
+      VIRTUAL_HOST: ${VIRTUAL_HOST}
+      LETSENCRYPT_HOST: ${LETSENCRYPT_HOST}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
+
+  awx_task:
+    image: "ansible/awx_task:latest"
+    links:
+      - rabbitmq
+      - memcached
+      - awx_web:awxweb
+      - postgres
+    hostname: awx
+    user: root
+    environment:
+      SECRET_KEY: ${SECRET_KEY}
+      DATABASE_USER: awx
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      DATABASE_NAME: awx
+      DATABASE_PORT: 5432
+      DATABASE_HOST: postgres
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_VHOST: awx
+      MEMCACHED_HOST: memcached
+      MEMCACHED_PORT: 11211
+
+  nginx:
+    image: jwilder/nginx-proxy
+    hostname: nginx-proxy
+    restart: always
+    ports:
+     - 80:80
+     - 443:443
+    volumes:
+     - ./certs:/etc/nginx/certs:ro
+     - ./htpasswd:/etc/nginx/htpasswd:ro
+     - ./vhost.d:/etc/nginx/vhost.d
+     - ./html:/usr/share/nginx/html
+     - /var/run/docker.sock:/tmp/docker.sock:ro
+
+  letsencrypt:
+    image: jrcs/letsencrypt-nginx-proxy-companion
+    hostname: letsencrypt-nginx
+    restart: always
+    volumes_from:
+     - nginx
+    volumes:
+     - ./certs:/etc/nginx/certs:rw
+     - /var/run/docker.sock:/var/run/docker.sock:ro
