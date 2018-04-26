@@ -14,6 +14,8 @@ services:
     image: "rabbitmq:3"
     environment:
       RABBITMQ_DEFAULT_VHOST: awx
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
 
   memcached:
     image: "memcached:alpine"
